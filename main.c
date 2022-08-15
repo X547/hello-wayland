@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
-#include <linux/input-event-codes.h>
+#include "linux/input-event-codes.h"
 
 #include "cat.h"
 #include "shm.h"
@@ -29,8 +29,7 @@ static void noop() {
 	// This space intentionally left blank
 }
 
-static void xdg_surface_handle_configure(void *data,
-		struct xdg_surface *xdg_surface, uint32_t serial) {
+static void xdg_surface_handle_configure(void *data, struct xdg_surface *xdg_surface, uint32_t serial) {
 	xdg_surface_ack_configure(xdg_surface, serial);
 	wl_surface_commit(surface);
 }
@@ -39,8 +38,7 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 	.configure = xdg_surface_handle_configure,
 };
 
-static void xdg_toplevel_handle_close(void *data,
-		struct xdg_toplevel *xdg_toplevel) {
+static void xdg_toplevel_handle_close(void *data, struct xdg_toplevel *xdg_toplevel) {
 	running = false;
 }
 
@@ -49,8 +47,7 @@ static const struct xdg_toplevel_listener xdg_toplevel_listener = {
 	.close = xdg_toplevel_handle_close,
 };
 
-static void pointer_handle_button(void *data, struct wl_pointer *pointer,
-		uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
+static void pointer_handle_button(void *data, struct wl_pointer *pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
 	struct wl_seat *seat = data;
 
 	if (button == BTN_LEFT && state == WL_POINTER_BUTTON_STATE_PRESSED) {
@@ -64,10 +61,10 @@ static const struct wl_pointer_listener pointer_listener = {
 	.motion = noop,
 	.button = pointer_handle_button,
 	.axis = noop,
+	.frame = noop,
 };
 
-static void seat_handle_capabilities(void *data, struct wl_seat *seat,
-		uint32_t capabilities) {
+static void seat_handle_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {
 	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
 		struct wl_pointer *pointer = wl_seat_get_pointer(seat);
 		wl_pointer_add_listener(pointer, &pointer_listener, seat);
@@ -78,24 +75,20 @@ static const struct wl_seat_listener seat_listener = {
 	.capabilities = seat_handle_capabilities,
 };
 
-static void handle_global(void *data, struct wl_registry *registry,
-		uint32_t name, const char *interface, uint32_t version) {
+static void handle_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	if (strcmp(interface, wl_shm_interface.name) == 0) {
 		shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	} else if (strcmp(interface, wl_seat_interface.name) == 0) {
-		struct wl_seat *seat =
-			wl_registry_bind(registry, name, &wl_seat_interface, 1);
+		struct wl_seat *seat = wl_registry_bind(registry, name, &wl_seat_interface, 1);
 		wl_seat_add_listener(seat, &seat_listener, NULL);
 	} else if (strcmp(interface, wl_compositor_interface.name) == 0) {
-		compositor = wl_registry_bind(registry, name,
-			&wl_compositor_interface, 1);
+		compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 1);
 	} else if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 1);
 	}
 }
 
-static void handle_global_remove(void *data, struct wl_registry *registry,
-		uint32_t name) {
+static void handle_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
 	// Who cares
 }
 
@@ -122,8 +115,7 @@ static struct wl_buffer *create_buffer() {
 	}
 
 	struct wl_shm_pool *pool = wl_shm_create_pool(shm, fd, size);
-	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height,
-		stride, WL_SHM_FORMAT_ARGB8888);
+	struct wl_buffer *buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 
 	// MagickImage is from cat.h
@@ -153,8 +145,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	surface = wl_compositor_create_surface(compositor);
-	struct xdg_surface *xdg_surface =
-		xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
+	struct xdg_surface *xdg_surface = xdg_wm_base_get_xdg_surface(xdg_wm_base, surface);
 	xdg_toplevel = xdg_surface_get_toplevel(xdg_surface);
 
 	xdg_surface_add_listener(xdg_surface, &xdg_surface_listener, NULL);
